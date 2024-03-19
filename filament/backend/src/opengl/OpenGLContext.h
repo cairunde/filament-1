@@ -153,6 +153,7 @@ public:
     inline void bindTexture(GLuint unit, GLuint target, GLuint texId) noexcept;
 
            void unbindTexture(GLenum target, GLuint id) noexcept;
+           void unbindTextureUnit(GLuint unit) noexcept;
     inline void bindVertexArray(RenderPrimitive const* p) noexcept;
     inline void bindSampler(GLuint unit, GLuint sampler) noexcept;
            void unbindSampler(GLuint sampler) noexcept;

@@ -894,6 +894,30 @@ void OpenGLContext::unbindTexture(GLenum target, GLuint texture_id) noexcept {
     }
 }
 
+void OpenGLContext::unbindTextureUnit(GLuint unit) noexcept {
+    GLuint const targets[] = {
+            GL_TEXTURE_2D,
+            GL_TEXTURE_2D_ARRAY,
+            GL_TEXTURE_CUBE_MAP,
+#if defined(BACKEND_OPENGL_LEVEL_GLES31)
+            GL_TEXTURE_2D_MULTISAMPLE,
+#endif
+            GL_TEXTURE_EXTERNAL_OES,
+            GL_TEXTURE_3D,
+            GL_TEXTURE_CUBE_MAP_ARRAY
+    };
+
+    activeTexture(unit);
+
+    UTILS_NOUNROLL
+    for (GLuint const target : targets) {
+        size_t const index = getIndexForTextureTarget(target);
+        update_state(state.textures.units[unit].targets[index].texture_id, GLuint(0), [&]() {
+            glBindTexture(target, GLuint(0));
+        });
+    }
+}
+
 void OpenGLContext::unbindSampler(GLuint sampler) noexcept {
     // unbind this sampler from all the units it might be bound to
     UTILS_NOUNROLL  // clang generates >800B of code!!!
