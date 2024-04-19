@@ -27,6 +27,7 @@
 #include "FrameHistory.h"
 #include "FrameInfo.h"
 #include "Froxelizer.h"
+#include "DescriptorSet.h"
 #include "PerViewUniforms.h"
 #include "PIDController.h"
 #include "ShadowMap.h"

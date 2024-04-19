@@ -34,6 +34,7 @@
 #include <filament/View.h>
 
 #include <private/filament/UibStructs.h>
+#include <private/filament/EngineEnums.h>
 
 #include <utils/Profiler.h>
 #include <utils/Slice.h>
@@ -101,6 +102,17 @@ FView::FView(FEngine& engine)
     mIsDynamicResolutionSupported = driver.isFrameTimeSupported();
 
     mDefaultColorGrading = mColorGrading = engine.getDefaultColorGrading();
+
+    auto& descriptorSet = mPerViewUniforms.getDescriptorSet();
+    descriptorSet.setBuffer(+PerViewBindingPoint::LIGHTS,
+            mLightUbh, 0);
+    // FIXME: this one is not ready at this point
+    descriptorSet.setBuffer(+PerViewBindingPoint::SHADOWS,
+            mShadowMapManager->getShadowUniformsHandle(), 0);
+    descriptorSet.setBuffer(+PerViewBindingPoint::RECORD_BUFFER,
+            mFroxelizer.getRecordBuffer(), 0);
+    descriptorSet.setBuffer(+PerViewBindingPoint::FROXEL_BUFFER,
+            mFroxelizer.getFroxelBuffer(), 0);
 }
 
 FView::~FView() noexcept = default;
@@ -684,25 +696,6 @@ void FView::prepare(FEngine& engine, DriverApi& driver, RootArenaScope& rootAren
 
 void FView::bindPerViewUniformsAndSamplers(FEngine::DriverApi& driver) const noexcept {
     mPerViewUniforms.bind(driver);
-
-    if (UTILS_UNLIKELY(driver.getFeatureLevel() == backend::FeatureLevel::FEATURE_LEVEL_0)) {
-        return;
-    }
-
-    driver.bindUniformBuffer(+UniformBindingPoints::LIGHTS,
-            mLightUbh);
-
-    if (needsShadowMap()) {
-        assert_invariant(mShadowMapManager->getShadowUniformsHandle());
-        driver.bindUniformBuffer(+UniformBindingPoints::SHADOW,
-                mShadowMapManager->getShadowUniformsHandle());
-    }
-
-    driver.bindUniformBuffer(+UniformBindingPoints::FROXEL_RECORDS,
-            mFroxelizer.getRecordBuffer());
-
-    driver.bindUniformBuffer(+UniformBindingPoints::FROXELS,
-            mFroxelizer.getFroxelBuffer());
 }
 
 void FView::computeVisibilityMasks(

@@ -19,16 +19,23 @@
 
 #include <filament/Viewport.h>
 
-#include <private/filament/UibStructs.h>
-#include <private/backend/SamplerGroup.h>
-
+#include "DescriptorSet.h"
 #include "TypedUniformBuffer.h"
+
+#include <private/filament/UibStructs.h>
 
 #include <backend/Handle.h>
 
 #include <utils/EntityInstance.h>
 
-#include <random>
+#include <math/vec2.h>
+#include <math/vec3.h>
+#include <math/vec4.h>
+#include <math/mat4.h>
+
+#include <array>
+
+#include <stdint.h>
 
 namespace filament {
 
@@ -53,6 +60,8 @@ class LightManager;
  * holds onto handles for the PER_VIEW UBO and SamplerGroup. This class maintains a shadow copy
  * of the UBO/sampler data, so it is possible to partially update it between commits.
  */
+
+// FIXME: rename this to e.g.: PerViewDescriptors
 class PerViewUniforms {
 
     using LightManagerInstance = utils::EntityInstance<LightManager>;
@@ -67,6 +76,11 @@ public:
     explicit PerViewUniforms(FEngine& engine) noexcept;
 
     void terminate(backend::DriverApi& driver);
+
+    // this is used to update descriptors not handled by this class
+    DescriptorSet& getDescriptorSet() noexcept {
+        return mDescriptorSet;
+    }
 
     void prepareCamera(FEngine& engine, const CameraInfo& camera) noexcept;
     void prepareLodBias(float bias, math::float2 derivativesScale) noexcept;
@@ -142,9 +156,8 @@ public:
 
 private:
     TypedUniformBuffer<PerViewUib> mUniforms;
-    backend::SamplerGroup mSamplers;
     backend::Handle<backend::HwBufferObject> mUniformBufferHandle;
-    backend::Handle<backend::HwSamplerGroup> mSamplerGroupHandle;
+    DescriptorSet mDescriptorSet;
     static void prepareShadowSampling(PerViewUib& uniforms,
             ShadowMappingUniforms const& shadowMappingUniforms) noexcept;
 };
