@@ -21,6 +21,8 @@
 
 #include "details/MaterialInstance.h"
 
+#include "DescriptorSetLayout.h"
+
 #include <filament/Material.h>
 #include <filament/MaterialEnums.h>
 
@@ -89,6 +91,10 @@ public:
     // return the uniform interface block for this material
     const SamplerInterfaceBlock& getSamplerInterfaceBlock() const noexcept {
         return mSamplerInterfaceBlock;
+    }
+
+    DescriptorSetLayout const& getDescriptorSetLayout() const noexcept {
+        return mDescriptorSetLayout;
     }
 
     void compile(CompilerPriorityQueue priority,
@@ -255,10 +261,14 @@ private:
 
     void processDepthVariants(FEngine& engine, MaterialParser const* parser);
 
+    void processDescriptorSets(FEngine& engine);
+
     void createAndCacheProgram(backend::Program&& p, Variant variant) const noexcept;
 
     // try to order by frequency of use
     mutable std::array<backend::Handle<backend::HwProgram>, VARIANT_COUNT> mCachedPrograms;
+    DescriptorSetLayout mDescriptorSetLayout;
+    utils::FixedCapacityVector<backend::Program::Descriptor> mProgramDescriptorBindings;
 
     backend::RasterState mRasterState;
     TransparencyMode mTransparencyMode = TransparencyMode::DEFAULT;

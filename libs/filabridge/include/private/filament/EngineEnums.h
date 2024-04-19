@@ -34,6 +34,22 @@ enum class PostProcessVariant : uint8_t {
     TRANSLUCENT
 };
 
+// binding point for the "per-view" descriptor set
+enum class PerViewBindingPoint {
+    FRAME_UNIFORMS  =  0,   // uniforms updated per view
+    LIGHTS          =  1,   // lights data array
+    SHADOWS         =  2,   // punctual shadow data
+    RECORD_BUFFER   =  3,   // froxel record buffer
+    FROXEL_BUFFER   =  4,   // froxel buffer
+    SHADOW_MAP      =  5,   // user defined (1024x1024) DEPTH, array
+    IBL_DFG_LUT     =  6,   // user defined (128x128), RGB16F
+    IBL_SPECULAR    =  7,   // user defined, user defined, CUBEMAP
+    SSAO            =  8,   // variable, RGB8 {AO, [depth]}
+    SSR             =  9,   // variable, RGB_11_11_10, mipmapped
+    STRUCTURE       = 10,   // variable, DEPTH
+    FOG             = 11    // variable, user defined, CUBEMAP
+};
+
 // Binding points for uniform buffers
 enum class UniformBindingPoints : uint8_t {
     PER_VIEW                   = 0,    // uniforms updated per view
@@ -131,6 +147,8 @@ constexpr uint8_t CONFIG_MAX_STEREOSCOPIC_EYES = 4;
 
 } // namespace filament
 
+template<>
+struct utils::EnableIntegerOperators<filament::PerViewBindingPoint> : public std::true_type {};
 template<>
 struct utils::EnableIntegerOperators<filament::UniformBindingPoints> : public std::true_type {};
 template<>
