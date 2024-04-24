@@ -30,7 +30,7 @@ namespace filament::backend {
 
 namespace {
 
-inline VkImageLayout getVkImageLayout(VulkanLayout layout) {
+constexpr inline VkImageLayout getVkImageLayout(VulkanLayout layout) {
     switch (layout) {
         case VulkanLayout::UNDEFINED:
             return VK_IMAGE_LAYOUT_UNDEFINED;
