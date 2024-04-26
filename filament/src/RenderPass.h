@@ -122,6 +122,25 @@ public:
      */
     using CommandKey = uint64_t;
 
+    // 53 59 62
+
+    struct CmdKey {
+        uint8_t Channel;    
+        uint8_t type;      
+        uint8_t Pass;    
+        uint8_t alphaMasking;        
+        uint8_t priority;     
+        uint8_t reserved; //6
+        uint8_t a;
+        uint8_t b;
+        uint32_t bits;   //4  10
+        uint32_t bucket; //4  14
+        uint32_t material_id; //14  8
+        uint32_t c;
+    };
+
+    static_assert(sizeof(CmdKey) == 24);
+
     static constexpr uint64_t BLEND_ORDER_MASK              = 0xFFFEllu;
     static constexpr unsigned BLEND_ORDER_SHIFT             = 1;
 
@@ -176,6 +195,22 @@ public:
         REFRACT  = uint64_t(0x02) << PASS_SHIFT,
         BLENDED  = uint64_t(0x03) << PASS_SHIFT,
         SENTINEL = 0xffffffffffffffffllu
+    };
+
+    //crd
+    enum class PassKey : uint8_t {
+        DEPTH    = uint8_t(0x00),
+        COLOR    = uint8_t(0x01),
+        REFRACT  = uint8_t(0x02),
+        BLENDED  = uint8_t(0x03),
+        SENTINEL = 0xFF
+    };
+
+    //crd 
+    enum class CmdType : uint8_t {
+        PROLOG  = uint8_t(0x00),
+        PASS    = uint8_t(0x01),
+        EPILOG  = uint8_t(0x02)
     };
 
     enum class CustomCommand : uint64_t {    // 2-bits max
@@ -261,16 +296,22 @@ public:
     static_assert(sizeof(PrimitiveInfo) == 56);
 
     struct alignas(8) Command {     // 64 bytes
+        CmdKey k;
         CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
-        bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
+        //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
+        //crd
+        bool operator < (Command const& rhs) const noexcept {
+            return k.Channel < rhs.k.Channel;
+        }
+        
         // placement new declared as "throw" to avoid the compiler's null-check
         inline void* operator new (size_t, void* ptr) {
             assert_invariant(ptr);
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 64);
+    static_assert(sizeof(Command) == 88); //64 + 24 = 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 
