@@ -122,24 +122,50 @@ public:
      */
     using CommandKey = uint64_t;
 
-    // 53 59 62
+    //公有的channel commandType passType 
+    //alphaMasking,priority  Z-bucket,material-id
+    //priority               order,customCommandIndex
+    //t                      distanceBits,blendOrder
 
-    struct CmdKey {
-        uint8_t Channel;    
-        uint8_t type;      
-        uint8_t Pass;    
-        uint8_t alphaMasking;        
-        uint8_t priority;     
-        uint8_t reserved; //6
-        uint8_t a;
-        uint8_t b;
-        uint32_t bits;   //4  10
-        uint32_t bucket; //4  14
-        uint32_t material_id; //14  8
-        uint32_t c;
+    struct ColorDepthRefractKey {
+        uint32_t zBucket;
+        uint32_t materialId;
     };
 
-    static_assert(sizeof(CmdKey) == 24);
+    static_assert(sizeof(ColorDepthRefractKey) == 8);
+
+    struct BlendedKey {
+        uint32_t distanceBits;
+        uint32_t blenderOrder;
+    };
+
+    static_assert(sizeof(BlendedKey) == 8);
+
+    struct CustomKey {
+        uint32_t order;
+        uint32_t commandIndex;
+    };
+
+    static_assert(sizeof(CustomKey) == 8);
+    
+
+    //成员要小写
+    struct CmdKey {
+        uint8_t channel;    
+        uint8_t commandType;      
+        uint8_t passType;    
+        uint8_t priority;
+
+        uint32_t reserved;
+
+        union{
+            ColorDepthRefractKey colorDepthRefractKey;
+            BlendedKey blendedKey;
+            CustomKey customKey;
+        };
+    };
+
+    static_assert(sizeof(CmdKey) == 16);
 
     static constexpr uint64_t BLEND_ORDER_MASK              = 0xFFFEllu;
     static constexpr unsigned BLEND_ORDER_SHIFT             = 1;
@@ -302,7 +328,7 @@ public:
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            return k.Channel < rhs.k.Channel;
+            return k.channel < rhs.k.channel;
         }
         
         // placement new declared as "throw" to avoid the compiler's null-check
@@ -311,7 +337,7 @@ public:
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 88); //64 + 24 = 
+    static_assert(sizeof(Command) == 80); //64 + 16 = 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 
