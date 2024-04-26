@@ -148,8 +148,6 @@ public:
 
     static_assert(sizeof(CustomKey) == 8);
     
-
-    //成员要小写
     struct CmdKey {
         uint8_t channel;    
         uint8_t commandType;      
@@ -328,7 +326,43 @@ public:
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            return k.channel < rhs.k.channel;
+            if(k.channel != rhs.k.channel){
+                return k.channel < rhs.k.channel;
+            }
+
+            if(k.passType != rhs.k.passType){
+                return k.passType < rhs.k.passType;
+            }
+
+            if(k.commandType != rhs.k.commandType){
+                return k.commandType < rhs.k.commandType;
+            }
+
+            if(k.commandType != uint8_t(CmdType::PASS)){
+                if(k.customKey.order != rhs.k.customKey.order){
+                    return k.customKey.order < rhs.k.customKey.order;
+                }
+
+                return k.customKey.commandIndex < rhs.k.customKey.commandIndex;
+            }
+            else{
+                if(k.passType == uint8_t(PassKey::BLENDED)){
+                    if(k.blendedKey.distanceBits != rhs.k.blendedKey.distanceBits){
+                        return k.blendedKey.distanceBits < rhs.k.blendedKey.distanceBits;
+                    }
+
+                    return k.blendedKey.blenderOrder < rhs.k.blendedKey.blenderOrder;
+                }
+                else{
+                    if(k.colorDepthRefractKey.zBucket != rhs.k.colorDepthRefractKey.zBucket){
+                        return k.colorDepthRefractKey.zBucket < rhs.k.colorDepthRefractKey.zBucket;
+                    }
+
+                    return k.colorDepthRefractKey.materialId < rhs.k.colorDepthRefractKey.materialId;
+                }
+            }
+
+            return true;
         }
         
         // placement new declared as "throw" to avoid the compiler's null-check
