@@ -128,7 +128,8 @@ public:
     //t                      distanceBits,blendOrder
 
     struct ColorDepthRefractKey {
-        uint32_t zBucket;
+        uint16_t priority : 6;
+        uint16_t zBucket : 10;
         uint32_t materialId;
     };
 
@@ -136,13 +137,16 @@ public:
 
     struct BlendedKey {
         uint32_t distanceBits;
-        uint32_t blenderOrder;
+        uint16_t blenderOrder : 15;
+        uint16_t twoPassOrder : 1;
+        uint16_t reserved;
     };
 
     static_assert(sizeof(BlendedKey) == 8);
 
     struct CustomKey {
-        uint32_t order;
+        uint32_t order : 22;
+
         uint32_t commandIndex;
     };
 
@@ -156,7 +160,7 @@ public:
 
         uint32_t reserved;
 
-        union{
+        union {
             ColorDepthRefractKey colorDepthRefractKey;
             BlendedKey blendedKey;
             CustomKey customKey;
@@ -321,11 +325,12 @@ public:
 
     struct alignas(8) Command {     // 64 bytes
         CmdKey k;
-        CommandKey key = 0;         //  8 bytes
+        //CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
+            //return k.channel < rhs.k.channel;
             if(k.channel != rhs.k.channel){
                 return k.channel < rhs.k.channel;
             }
@@ -371,7 +376,7 @@ public:
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 80); //64 + 16 = 
+    static_assert(sizeof(Command) == 72); //64 + 16 = 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 

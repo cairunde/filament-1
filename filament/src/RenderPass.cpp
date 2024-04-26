@@ -237,13 +237,13 @@ void RenderPass::appendCustomCommand(Command* commands,
     uint32_t const index = mCustomCommands.size();
     mCustomCommands.push_back(std::move(command));
 
-    uint64_t cmd = uint64_t(pass);
-    cmd |= uint64_t(channel) << CHANNEL_SHIFT;
-    cmd |= uint64_t(custom);
-    cmd |= uint64_t(order) << CUSTOM_ORDER_SHIFT;
-    cmd |= uint64_t(index);
+    // uint64_t cmd = uint64_t(pass);
+    // cmd |= uint64_t(channel) << CHANNEL_SHIFT;
+    // cmd |= uint64_t(custom);
+    // cmd |= uint64_t(order) << CUSTOM_ORDER_SHIFT;
+    // cmd |= uint64_t(index);
 
-    commands->key = cmd;
+    // commands->key = cmd;
 
     //crd
     CmdKey c;
@@ -389,7 +389,8 @@ void RenderPass::instanceify(FEngine& engine, Arena& arena) noexcept {
 
         // remove all the canceled commands
         auto lastCommand = std::remove_if(firstSentinel, mCommandEnd, [](auto const& command) {
-            return command.key == uint64_t(Pass::SENTINEL);
+            //crd
+            return command.k.passType == uint8_t(PassKey::SENTINEL);//uint64_t(Pass::SENTINEL);
         });
 
         resize(arena, uint32_t(lastCommand - mCommandBegin));
@@ -410,28 +411,30 @@ void RenderPass::setupColorCommand(Command& cmdDraw, Variant variant,
 
     // Below, we evaluate both commands to avoid a branch
 
-    uint64_t keyBlending = cmdDraw.key;
+    //uint64_t keyBlending = cmdDraw.key;
     //crd 这里是清除了pass和alpha masking的值
-    keyBlending &= ~(PASS_MASK | BLENDING_MASK);
-    keyBlending |= uint64_t(Pass::BLENDED);
-    keyBlending |= uint64_t(CustomCommand::PASS);
+    // keyBlending &= ~(PASS_MASK | BLENDING_MASK);
+    // keyBlending |= uint64_t(Pass::BLENDED);
+    // keyBlending |= uint64_t(CustomCommand::PASS);
 
     BlendingMode const blendingMode = ma->getBlendingMode();
     bool const hasScreenSpaceRefraction = ma->getRefractionMode() == RefractionMode::SCREEN_SPACE;
     bool const isBlendingCommand = !hasScreenSpaceRefraction &&
             (blendingMode != BlendingMode::OPAQUE && blendingMode != BlendingMode::MASKED);
 
-    uint64_t keyDraw = cmdDraw.key;
-    keyDraw &= ~(PASS_MASK | BLENDING_MASK | MATERIAL_MASK);
-    keyDraw |= uint64_t(hasScreenSpaceRefraction ? Pass::REFRACT : Pass::COLOR);
-    keyDraw |= uint64_t(CustomCommand::PASS);
-    keyDraw |= mi->getSortingKey(); // already all set-up for direct or'ing
+    // uint64_t keyDraw = cmdDraw.key;
+    // keyDraw &= ~(PASS_MASK | BLENDING_MASK | MATERIAL_MASK);
+    // keyDraw |= uint64_t(hasScreenSpaceRefraction ? Pass::REFRACT : Pass::COLOR);
+    // keyDraw |= uint64_t(CustomCommand::PASS);
+    // keyDraw |= mi->getSortingKey(); // already all set-up for direct or'ing
 
+    // //crd temp
+    // keyDraw |= makeField(variant.key, MATERIAL_VARIANT_KEY_MASK, MATERIAL_VARIANT_KEY_SHIFT);
+    // keyDraw |= makeField(ma->getRasterState().alphaToCoverage, BLENDING_MASK, BLENDING_SHIFT);
+
+    //cmdDraw.key = isBlendingCommand ? keyBlending : keyDraw;
     //crd temp
-    keyDraw |= makeField(variant.key, MATERIAL_VARIANT_KEY_MASK, MATERIAL_VARIANT_KEY_SHIFT);
-    keyDraw |= makeField(ma->getRasterState().alphaToCoverage, BLENDING_MASK, BLENDING_SHIFT);
-
-    cmdDraw.key = isBlendingCommand ? keyBlending : keyDraw;
+    makeField(ma->getRasterState().alphaToCoverage, BLENDING_MASK, BLENDING_SHIFT);
 
     //crd
     CmdKey blending;
@@ -662,11 +665,11 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
             cmdDepth.k.blendedKey.distanceBits = distanceBits >> 22u;
 
 
-            cmdDepth.key = uint64_t(Pass::DEPTH);
-            cmdDepth.key |= uint64_t(CustomCommand::PASS);
-            cmdDepth.key |= makeField(soaVisibility[i].priority, PRIORITY_MASK, PRIORITY_SHIFT);
-            cmdDepth.key |= makeField(soaVisibility[i].channel, CHANNEL_MASK, CHANNEL_SHIFT);
-            cmdDepth.key |= makeField(distanceBits >> 22u, Z_BUCKET_MASK, Z_BUCKET_SHIFT);
+            // cmdDepth.key = uint64_t(Pass::DEPTH);
+            // cmdDepth.key |= uint64_t(CustomCommand::PASS);
+            // cmdDepth.key |= makeField(soaVisibility[i].priority, PRIORITY_MASK, PRIORITY_SHIFT);
+            // cmdDepth.key |= makeField(soaVisibility[i].channel, CHANNEL_MASK, CHANNEL_SHIFT);
+            // cmdDepth.key |= makeField(distanceBits >> 22u, Z_BUCKET_MASK, Z_BUCKET_SHIFT);
             cmdDepth.primitive.index = i;
             cmdDepth.primitive.instanceCount =
                     soaInstanceInfo[i].count | PrimitiveInfo::USER_INSTANCE_MASK;
@@ -727,17 +730,17 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     // blend pass:
                     //   This will sort back-to-front for blended, and honor explicit ordering
                     //   for a given Z value, or globally.
-                    cmdColor.key &= ~BLEND_ORDER_MASK;
-                    cmdColor.key &= ~BLEND_DISTANCE_MASK;
-                    // write the distance
-                    cmdColor.key |= makeField(~distanceBits,
-                            BLEND_DISTANCE_MASK, BLEND_DISTANCE_SHIFT);
-                    // clear the distance if global ordering is enabled
-                    cmdColor.key &= ~select(primitive.isGlobalBlendOrderEnabled(),
-                            BLEND_DISTANCE_MASK);
-                    // write blend order
-                    cmdColor.key |= makeField(primitive.getBlendOrder(),
-                            BLEND_ORDER_MASK, BLEND_ORDER_SHIFT);
+                    // cmdColor.key &= ~BLEND_ORDER_MASK;
+                    // cmdColor.key &= ~BLEND_DISTANCE_MASK;
+                    // // write the distance
+                    // cmdColor.key |= makeField(~distanceBits,
+                    //         BLEND_DISTANCE_MASK, BLEND_DISTANCE_SHIFT);
+                    // // clear the distance if global ordering is enabled
+                    // cmdColor.key &= ~select(primitive.isGlobalBlendOrderEnabled(),
+                    //         BLEND_DISTANCE_MASK);
+                    // // write blend order
+                    // cmdColor.key |= makeField(primitive.getBlendOrder(),
+                    //         BLEND_ORDER_MASK, BLEND_ORDER_SHIFT);
 
                     //crd temp
                     cmdColor.k.blendedKey.distanceBits = distanceBits;
@@ -760,19 +763,19 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                             (mode == TransparencyMode::TWO_PASSES_TWO_SIDES) ?
                             CullingMode::BACK : cmdColor.primitive.rasterState.culling;
 
-                    uint64_t key = cmdColor.key;
+                    // uint64_t key = cmdColor.key;
 
-                    // draw this command AFTER THE NEXT ONE
-                    key |= makeField(1, BLEND_TWO_PASS_MASK, BLEND_TWO_PASS_SHIFT);
+                    // // draw this command AFTER THE NEXT ONE
+                    // key |= makeField(1, BLEND_TWO_PASS_MASK, BLEND_TWO_PASS_SHIFT);
 
-                    // correct for TransparencyMode::DEFAULT -- i.e. cancel the command
-                    key |= select(mode == TransparencyMode::DEFAULT);
+                    // // correct for TransparencyMode::DEFAULT -- i.e. cancel the command
+                    // key |= select(mode == TransparencyMode::DEFAULT);
 
-                    // cancel command if asked to filter translucent objects
-                    key |= select(filterTranslucentObjects);
+                    // // cancel command if asked to filter translucent objects
+                    // key |= select(filterTranslucentObjects);
 
-                    // cancel command if both front and back faces are culled
-                    key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
+                    // // cancel command if both front and back faces are culled
+                    // key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
 
                     //crd temp 差twopass
                     if(mode == TransparencyMode::DEFAULT) {
@@ -786,7 +789,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     }
 
                     *curr = cmdColor;
-                    curr->key = key;
+                    //curr->key = key;
                     ++curr;
 
                     // TWO_PASSES_TWO_SIDES: this command will be issued first, draw back sides (i.e. cull front)

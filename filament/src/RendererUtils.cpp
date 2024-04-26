@@ -285,10 +285,12 @@ std::pair<FrameGraphId<FrameGraphTexture>, bool> RendererUtils::refractionPass(
     // find the first refractive object in channel 2
     RenderPass::Command const* const refraction = std::partition_point(pass.begin(), pass.end(),
             [](auto const& command) {
-                constexpr uint64_t mask  = RenderPass::CHANNEL_MASK | RenderPass::PASS_MASK;
+                //constexpr uint64_t mask  = RenderPass::CHANNEL_MASK | RenderPass::PASS_MASK;
                 constexpr uint64_t channel = uint64_t(RenderableManager::Builder::DEFAULT_CHANNEL) << RenderPass::CHANNEL_SHIFT;
                 constexpr uint64_t value = channel | uint64_t(RenderPass::Pass::REFRACT);
-                return (command.key & mask) < value;
+                
+                return command.k.channel < value;
+                //return (command.key & mask) < value;
             });
 
     //crd
