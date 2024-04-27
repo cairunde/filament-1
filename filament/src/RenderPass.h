@@ -128,23 +128,37 @@ public:
     //t                      distanceBits,blendOrder
 
     struct ColorDepthRefractKey {
-        uint16_t priority : 6;
-        uint16_t zBucket : 10;
+        uint32_t channel : 3;    
+        uint32_t commandType : 2;      
+        uint32_t passType : 2;
+        uint32_t alphaMasking : 1;
+        uint32_t priority : 6;
+        uint32_t zBucket : 10;
+        
         uint32_t materialId;
     };
 
     static_assert(sizeof(ColorDepthRefractKey) == 8);
 
     struct BlendedKey {
+        uint32_t channel : 3;    
+        uint32_t commandType : 2;      
+        uint32_t passType : 2;
+        uint32_t priority : 3;
+        uint32_t blenderOrder : 15;
+        uint32_t twoPassOrder : 1;
+        uint32_t reserved : 6;
+
         uint32_t distanceBits;
-        uint16_t blenderOrder : 15;
-        uint16_t twoPassOrder : 1;
-        uint16_t reserved;
     };
 
     static_assert(sizeof(BlendedKey) == 8);
 
     struct CustomKey {
+        uint32_t channel : 3;    
+        uint32_t commandType : 2;      
+        uint32_t passType : 2;
+        uint32_t priority : 3;
         uint32_t order : 22;
 
         uint32_t commandIndex;
@@ -153,13 +167,6 @@ public:
     static_assert(sizeof(CustomKey) == 8);
     
     struct CmdKey {
-        uint8_t channel;    
-        uint8_t commandType;      
-        uint8_t passType;    
-        uint8_t priority;
-
-        uint32_t reserved;
-
         union {
             ColorDepthRefractKey colorDepthRefractKey;
             BlendedKey blendedKey;
@@ -167,7 +174,7 @@ public:
         };
     };
 
-    static_assert(sizeof(CmdKey) == 16);
+    static_assert(sizeof(CmdKey) == 8);
 
     static constexpr uint64_t BLEND_ORDER_MASK              = 0xFFFEllu;
     static constexpr unsigned BLEND_ORDER_SHIFT             = 1;
@@ -324,50 +331,50 @@ public:
     static_assert(sizeof(PrimitiveInfo) == 56);
 
     struct alignas(8) Command {     // 64 bytes
-        CmdKey k;
+        CmdKey key;
         //CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            //return k.channel < rhs.k.channel;
-            if(k.channel != rhs.k.channel){
-                return k.channel < rhs.k.channel;
-            }
+            return key.blendedKey.channel < rhs.key.blendedKey.channel;
+            // if(k.channel != rhs.k.channel){
+            //     return k.channel < rhs.k.channel;
+            // }
 
-            if(k.passType != rhs.k.passType){
-                return k.passType < rhs.k.passType;
-            }
+            // if(k.passType != rhs.k.passType){
+            //     return k.passType < rhs.k.passType;
+            // }
 
-            if(k.commandType != rhs.k.commandType){
-                return k.commandType < rhs.k.commandType;
-            }
+            // if(k.commandType != rhs.k.commandType){
+            //     return k.commandType < rhs.k.commandType;
+            // }
 
-            if(k.commandType != uint8_t(CmdType::PASS)){
-                if(k.customKey.order != rhs.k.customKey.order){
-                    return k.customKey.order < rhs.k.customKey.order;
-                }
+            // if(k.commandType != uint8_t(CmdType::PASS)){
+            //     if(k.customKey.order != rhs.k.customKey.order){
+            //         return k.customKey.order < rhs.k.customKey.order;
+            //     }
 
-                return k.customKey.commandIndex < rhs.k.customKey.commandIndex;
-            }
-            else{
-                if(k.passType == uint8_t(PassKey::BLENDED)){
-                    if(k.blendedKey.distanceBits != rhs.k.blendedKey.distanceBits){
-                        return k.blendedKey.distanceBits < rhs.k.blendedKey.distanceBits;
-                    }
+            //     return k.customKey.commandIndex < rhs.k.customKey.commandIndex;
+            // }
+            // else{
+            //     if(k.passType == uint8_t(PassKey::BLENDED)){
+            //         if(k.blendedKey.distanceBits != rhs.k.blendedKey.distanceBits){
+            //             return k.blendedKey.distanceBits < rhs.k.blendedKey.distanceBits;
+            //         }
 
-                    return k.blendedKey.blenderOrder < rhs.k.blendedKey.blenderOrder;
-                }
-                else{
-                    if(k.colorDepthRefractKey.zBucket != rhs.k.colorDepthRefractKey.zBucket){
-                        return k.colorDepthRefractKey.zBucket < rhs.k.colorDepthRefractKey.zBucket;
-                    }
+            //         return k.blendedKey.blenderOrder < rhs.k.blendedKey.blenderOrder;
+            //     }
+            //     else{
+            //         if(k.colorDepthRefractKey.zBucket != rhs.k.colorDepthRefractKey.zBucket){
+            //             return k.colorDepthRefractKey.zBucket < rhs.k.colorDepthRefractKey.zBucket;
+            //         }
 
-                    return k.colorDepthRefractKey.materialId < rhs.k.colorDepthRefractKey.materialId;
-                }
-            }
+            //         return k.colorDepthRefractKey.materialId < rhs.k.colorDepthRefractKey.materialId;
+            //     }
+            // }
 
-            return true;
+            // return true;
         }
         
         // placement new declared as "throw" to avoid the compiler's null-check
@@ -376,7 +383,7 @@ public:
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 72); //64 + 16 = 
+    static_assert(sizeof(Command) == 64); //64 + 16 = 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 
