@@ -289,12 +289,12 @@ std::pair<FrameGraphId<FrameGraphTexture>, bool> RendererUtils::refractionPass(
                 constexpr uint64_t channel = uint64_t(RenderableManager::Builder::DEFAULT_CHANNEL) << RenderPass::CHANNEL_SHIFT;
                 constexpr uint64_t value = channel | uint64_t(RenderPass::Pass::REFRACT);
                 
-                return command.k.channel < value;
+                return command.key.channel() < value;
                 //return (command.key & mask) < value;
             });
 
     //crd
-    const bool hasScreenSpaceRefraction = refraction->k.passType == uint8_t(RenderPass::Pass::REFRACT);
+    const bool hasScreenSpaceRefraction = refraction->key.passType() == uint8_t(RenderPass::Pass::REFRACT);
             //(refraction->key & RenderPass::PASS_MASK) == uint64_t(RenderPass::Pass::REFRACT);
 
     // if there wasn't any refractive object, just skip everything below.

@@ -172,9 +172,45 @@ public:
             BlendedKey blendedKey;
             CustomKey customKey;
         };
+
+        uint8_t channel() const {
+            return colorDepthRefractKey.channel;
+        }
+
+        uint8_t passType() const {
+            return colorDepthRefractKey.passType;
+        }
+
+        uint8_t commadType() const {
+            return colorDepthRefractKey.commandType;
+        }
+
+        void setChannel(uint8_t channel) {
+            colorDepthRefractKey.channel = channel;
+        }
+
+        void setPassType(uint8_t passType) {
+            colorDepthRefractKey.passType = passType;
+        }
+
+        void setCommadType(uint8_t commandType) {
+            colorDepthRefractKey.commandType = commandType;
+        }
     };
 
     static_assert(sizeof(CmdKey) == 8);
+
+    static constexpr CmdKey DEFAULT_KEY = {
+        .colorDepthRefractKey = {
+            .channel = 0, 
+            .commandType = 0,
+            .passType = 0,
+            .alphaMasking = 0,
+            .priority = 0,
+            .zBucket = 0,
+            .materialId = 0
+        }
+    };
 
     static constexpr uint64_t BLEND_ORDER_MASK              = 0xFFFEllu;
     static constexpr unsigned BLEND_ORDER_SHIFT             = 1;
@@ -331,13 +367,13 @@ public:
     static_assert(sizeof(PrimitiveInfo) == 56);
 
     struct alignas(8) Command {     // 64 bytes
-        CmdKey key;
+        CmdKey key = DEFAULT_KEY;
         //CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            return key.blendedKey.channel < rhs.key.blendedKey.channel;
+            return key.channel() < rhs.key.channel();
             // if(k.channel != rhs.k.channel){
             //     return k.channel < rhs.k.channel;
             // }
