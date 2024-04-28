@@ -134,6 +134,7 @@ public:
         uint32_t alphaMasking : 1;
         uint32_t priority : 6;
         uint32_t zBucket : 10;
+        uint32_t reserved : 8;
         
         uint32_t materialId;
     };
@@ -158,8 +159,8 @@ public:
         uint32_t channel : 3;    
         uint32_t commandType : 2;      
         uint32_t passType : 2;
-        uint32_t priority : 3;
         uint32_t order : 22;
+        uint32_t reserved : 3;
 
         uint32_t commandIndex;
     };
@@ -181,7 +182,7 @@ public:
             return colorDepthRefractKey.passType;
         }
 
-        uint8_t commadType() const {
+        uint8_t commandType() const {
             return colorDepthRefractKey.commandType;
         }
 
@@ -193,7 +194,7 @@ public:
             colorDepthRefractKey.passType = passType;
         }
 
-        void setCommadType(uint8_t commandType) {
+        void setCommandType(uint8_t commandType) {
             colorDepthRefractKey.commandType = commandType;
         }
     };
@@ -373,42 +374,49 @@ public:
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            return key.channel() < rhs.key.channel();
-            // if(k.channel != rhs.k.channel){
-            //     return k.channel < rhs.k.channel;
-            // }
+            if(key.channel() != rhs.key.channel()) {
+                return key.channel() < rhs.key.channel();
+            }
 
-            // if(k.passType != rhs.k.passType){
-            //     return k.passType < rhs.k.passType;
-            // }
+            if(key.passType() != rhs.key.passType()) {
+                return key.passType() < rhs.key.passType();
+            }
 
-            // if(k.commandType != rhs.k.commandType){
-            //     return k.commandType < rhs.k.commandType;
-            // }
+            if(key.commandType() != rhs.key.commandType()) {
+                return key.commandType() < rhs.key.commandType();
+            }
 
-            // if(k.commandType != uint8_t(CmdType::PASS)){
-            //     if(k.customKey.order != rhs.k.customKey.order){
-            //         return k.customKey.order < rhs.k.customKey.order;
-            //     }
+            if(key.commandType() != uint8_t(CmdType::PASS)) {
+                if(key.customKey.order != rhs.key.customKey.order) { 
+                    return key.customKey.order < rhs.key.customKey.order;
+                }
 
-            //     return k.customKey.commandIndex < rhs.k.customKey.commandIndex;
-            // }
-            // else{
-            //     if(k.passType == uint8_t(PassKey::BLENDED)){
-            //         if(k.blendedKey.distanceBits != rhs.k.blendedKey.distanceBits){
-            //             return k.blendedKey.distanceBits < rhs.k.blendedKey.distanceBits;
-            //         }
+                return key.customKey.commandIndex < rhs.key.customKey.commandIndex;
+            }
+            else {
+                if(key.blendedKey.priority != rhs.key.blendedKey.priority) {
+                    return key.blendedKey.priority < rhs.key.blendedKey.priority;
+                }
 
-            //         return k.blendedKey.blenderOrder < rhs.k.blendedKey.blenderOrder;
-            //     }
-            //     else{
-            //         if(k.colorDepthRefractKey.zBucket != rhs.k.colorDepthRefractKey.zBucket){
-            //             return k.colorDepthRefractKey.zBucket < rhs.k.colorDepthRefractKey.zBucket;
-            //         }
+                if(key.passType() == uint8_t(PassKey::BLENDED)) {
+                    if(key.blendedKey.distanceBits != rhs.key.blendedKey.distanceBits) {
+                        return key.blendedKey.distanceBits < rhs.key.blendedKey.distanceBits;
+                    }
 
-            //         return k.colorDepthRefractKey.materialId < rhs.k.colorDepthRefractKey.materialId;
-            //     }
-            // }
+                    if(key.blendedKey.blenderOrder != rhs.key.blendedKey.blenderOrder) {
+                        return key.blendedKey.blenderOrder < rhs.key.blendedKey.blenderOrder;
+                    }
+
+                    return key.blendedKey.twoPassOrder < rhs.key.blendedKey.twoPassOrder;
+                }
+                else {
+                    if(key.colorDepthRefractKey.zBucket != rhs.key.colorDepthRefractKey.zBucket) {
+                        return key.colorDepthRefractKey.zBucket < rhs.key.colorDepthRefractKey.zBucket;
+                    }
+
+                    return key.colorDepthRefractKey.materialId < rhs.key.colorDepthRefractKey.materialId;
+                }
+            }
 
             // return true;
         }
