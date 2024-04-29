@@ -169,9 +169,8 @@ void RenderPass::appendCommands(FEngine& engine,
         // exactly 1.
         assert_invariant(commands.size() == 1);
         Command* curr = commands.data();
-        //curr->key = uint64_t(Pass::SENTINEL);
         //crd
-        curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+        curr->key.passType = uint16_t(Pass::SENTINEL);
         return;
     }
 
@@ -219,14 +218,15 @@ void RenderPass::appendCommands(FEngine& engine,
     // command buffer.
     //"EOF"（End of Frame）
     //crd
-    curr[commandCount - 1].key.setPassType(uint8_t(PassKey::SENTINEL));
+    curr[commandCount - 1].key.channel = 0xFFFF;
+    curr[commandCount - 1].key.passType = uint16_t(Pass::SENTINEL);
     //curr[commandCount - 1].key = uint64_t(Pass::SENTINEL);
 
     // Go over all the commands and call prepareProgram().
     // This must be done from the main thread.
     for (Command const* first = curr, *last = curr + commandCount ; first != last ; ++first) {
         //crd
-        if (UTILS_LIKELY(first->key.commandType() == uint8_t(CmdType::PASS))) {
+        if (UTILS_LIKELY(first->key.commandType == uint16_t(CustomCommand::PASS))) {
         //if (UTILS_LIKELY((first->key & CUSTOM_MASK) == uint64_t(CustomCommand::PASS))) {
             auto ma = first->primitive.primitive->getMaterialInstance()->getMaterial();
             ma->prepareProgram(first->primitive.materialVariant);
@@ -254,13 +254,13 @@ void RenderPass::appendCustomCommand(Command* commands,
     // commands->key = cmd;
 
     //crd
-    CmdKey c;
-    c.setPassType((uint64_t(pass) >> 56) & 0xFF); 
-    c.setChannel(channel);
-    c.setCommandType(uint8_t(custom));
-    c.customKey.order = order;
-    c.customKey.commandIndex = index;
-    commands->key = c;
+    CommandKey cmd;
+    cmd.passType = (uint16_t)pass; 
+    cmd.channel = channel;
+    cmd.commandType = (uint16_t)custom; 
+    cmd.customKey.order = order;
+    cmd.customKey.commandIndex = index;
+    commands->key = cmd;
 }
 
 void RenderPass::sortCommands(Arena& arena) noexcept {
@@ -273,7 +273,7 @@ void RenderPass::sortCommands(Arena& arena) noexcept {
             [](Command const& c) {
                 //return c.key != uint64_t(Pass::SENTINEL);
                 //crd
-                return c.key.passType() != uint8_t(PassKey::SENTINEL);
+                return c.key.passType != uint16_t(Pass::SENTINEL);
             });
 
     resize(arena, uint32_t(last - mCommandBegin));
@@ -365,7 +365,7 @@ void RenderPass::instanceify(FEngine& engine, Arena& arena) noexcept {
             for (uint32_t i = 1; i < instanceCount; i++) {
                 //curr[i].key = uint64_t(Pass::SENTINEL);
                 //crd
-                curr[i].key.setPassType(uint8_t(PassKey::SENTINEL));
+                curr[i].key.passType = uint16_t(Pass::SENTINEL);
             }
         }
 
@@ -398,7 +398,7 @@ void RenderPass::instanceify(FEngine& engine, Arena& arena) noexcept {
         // remove all the canceled commands
         auto lastCommand = std::remove_if(firstSentinel, mCommandEnd, [](auto const& command) {
             //crd
-            return command.key.passType() == uint8_t(PassKey::SENTINEL);//uint64_t(Pass::SENTINEL);
+            return command.key.passType == uint16_t(Pass::SENTINEL);//uint64_t(Pass::SENTINEL);
         });
 
         resize(arena, uint32_t(lastCommand - mCommandBegin));
@@ -445,13 +445,13 @@ void RenderPass::setupColorCommand(Command& cmdDraw, Variant variant,
     makeField(ma->getRasterState().alphaToCoverage, BLENDING_MASK, BLENDING_SHIFT);
 
     //crd
-    CmdKey blending;
-    blending.setPassType(uint8_t(PassKey::BLENDED));
-    blending.setCommandType(uint8_t(CmdType::PASS));
+    CommandKey blending;
+    blending.passType = uint16_t(Pass::BLENDED);
+    blending.commandType = uint16_t(CustomCommand::PASS);
     
-    CmdKey drawing;
-    drawing.setPassType(hasScreenSpaceRefraction ? uint8_t(PassKey::REFRACT) : uint8_t(PassKey::COLOR));
-    drawing.setCommandType(uint8_t(CmdType::PASS));
+    CommandKey drawing;
+    drawing.passType = hasScreenSpaceRefraction ? uint16_t(Pass::REFRACT) : uint16_t(Pass::COLOR);
+    drawing.commandType = uint16_t(CustomCommand::PASS);
     drawing.colorDepthRefractKey.materialId = mi->getSortingKey();
 
     cmdDraw.key = isBlendingCommand ? blending : drawing;
@@ -537,9 +537,8 @@ void RenderPass::generateCommands(CommandTypeFlags commandTypeFlags, Command* co
     while (curr != last) {
         //curr->key = uint64_t(Pass::SENTINEL);
         //crd
-        curr->key.setCommandType(uint8_t(CmdType::PROLOG));
-        curr->key.setChannel(0);
-        curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+        curr->key.channel = 0xFFFF;
+        curr->key.passType = uint16_t(Pass::SENTINEL);
         ++curr;
     }
 }
@@ -640,7 +639,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
         // cmdColor.key |= makeField(soaVisibility[i].channel, CHANNEL_MASK, CHANNEL_SHIFT);
         //crd
         cmdColor.key.colorDepthRefractKey.priority = soaVisibility[i].priority;
-        cmdColor.key.setChannel(soaVisibility[i].channel);
+        cmdColor.key.channel = soaVisibility[i].channel;
 
         cmdColor.primitive.index = i;
         cmdColor.primitive.instanceCount =
@@ -668,9 +667,9 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
 
         if constexpr (isDepthPass) {
             //crd
-            cmdDepth.key.setPassType(uint8_t(PassKey::DEPTH));
-            cmdDepth.key.setCommandType(uint8_t(CmdType::PASS));
-            cmdDepth.key.setChannel(soaVisibility[i].channel);
+            cmdDepth.key.passType = uint16_t(Pass::DEPTH);
+            cmdDepth.key.commandType = uint16_t(CustomCommand::PASS);
+            cmdDepth.key.channel = soaVisibility[i].channel;
             cmdDepth.key.blendedKey.priority = soaVisibility[i].priority;
             cmdDepth.key.blendedKey.distanceBits = distanceBits >> 22u;
 
@@ -732,7 +731,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
 
                 //crd
                 //const bool blendPass = Pass(cmdColor.key & PASS_MASK) == Pass::BLENDED;
-                const bool blendPass = cmdColor.key.passType() == uint8_t(PassKey::BLENDED);
+                const bool blendPass = cmdColor.key.passType == uint16_t(Pass::BLENDED);
                 if (blendPass) {
                     // TODO: at least for transparent objects, AABB should be per primitive
                     //       but that would break the "local" blend-order, which relies on
@@ -787,15 +786,17 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     // // cancel command if both front and back faces are culled
                     // key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
 
-                    //crd temp 差twopass
+                    //crd 
+                    curr->key.blendedKey.twoPassOrder = 1;
+
                     if(mode == TransparencyMode::DEFAULT) {
-                        curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+                        curr->key.passType = uint16_t(Pass::SENTINEL);
                     }
                     if(filterTranslucentObjects) {
-                        curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+                        curr->key.passType = uint16_t(Pass::SENTINEL);
                     }
                     if(mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
-                        curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+                        curr->key.passType = uint16_t(Pass::SENTINEL);
                     }
 
                     *curr = cmdColor;
@@ -832,7 +833,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                 //curr->key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
                 //crd 被裁减的取消掉
                 if(mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
-                    curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+                    curr->key.passType = uint16_t(Pass::SENTINEL);
                 }
 
                 ++curr;
@@ -870,7 +871,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                 //curr->key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
                 //crd 被裁减的取消掉
                 if(mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
-                    curr->key.setPassType(uint8_t(PassKey::SENTINEL));
+                    curr->key.passType = uint16_t(Pass::SENTINEL);
                 }
 
                 ++curr;
@@ -999,7 +1000,7 @@ void RenderPass::Executor::execute(FEngine& engine,
             first--;
             while (++first != batchLast) {
                 //crd
-                assert_invariant(first->key.passType() != uint8_t(PassKey::SENTINEL));
+                assert_invariant(first->key.passType != uint16_t(Pass::SENTINEL));
                 //assert_invariant(first->key != uint64_t(Pass::SENTINEL));
 
                 /*
@@ -1015,9 +1016,9 @@ void RenderPass::Executor::execute(FEngine& engine,
                 //     continue;
                 // }
 
-                if (UTILS_UNLIKELY(first->key.commandType() != uint8_t(CmdType::PASS))) {
+                if (UTILS_UNLIKELY(first->key.commandType != uint16_t(CustomCommand::PASS))) {
                     mi = nullptr; // custom command could change the currently bound MaterialInstance
-                    uint32_t const index = first->key.colorDepthRefractKey.materialId;//(first->key & CUSTOM_INDEX_MASK) >> CUSTOM_INDEX_SHIFT;
+                    uint32_t const index = first->key.customKey.commandIndex;//(first->key & CUSTOM_INDEX_MASK) >> CUSTOM_INDEX_SHIFT;
                     assert_invariant(index < mCustomCommands.size());
                     pCustomCommands[index]();
                     continue;

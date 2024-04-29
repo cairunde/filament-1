@@ -120,7 +120,7 @@ public:
      *   |11111111 11111111 11111111 11111111 11111111 11111111 11111111 11111111|
      *   +-----------------------------------------------------------------------+
      */
-    using CommandKey = uint64_t;
+    //using CommandKey = uint64_t;
 
     //公有的channel commandType passType 
     //alphaMasking,priority  Z-bucket,material-id
@@ -128,88 +128,75 @@ public:
     //t                      distanceBits,blendOrder
 
     struct ColorDepthRefractKey {
-        uint32_t channel : 3;    
-        uint32_t commandType : 2;      
-        uint32_t passType : 2;
         uint32_t alphaMasking : 1;
         uint32_t priority : 6;
         uint32_t zBucket : 10;
-        uint32_t reserved : 8;
-        
-        uint32_t materialId;
-    };
+        uint32_t reserved : 15;
 
-    static_assert(sizeof(ColorDepthRefractKey) == 8);
+        uint16_t secondOrder;
+        uint16_t secondLayer;
+
+        uint32_t materialId;
+    }; 
+
+    static_assert(sizeof(ColorDepthRefractKey) == 12);
 
     struct BlendedKey {
-        uint32_t channel : 3;    
-        uint32_t commandType : 2;      
-        uint32_t passType : 2;
         uint32_t priority : 3;
         uint32_t blenderOrder : 15;
         uint32_t twoPassOrder : 1;
-        uint32_t reserved : 6;
+        uint32_t reserved : 13;
+
+        uint16_t secondOrder;
+        uint16_t secondLayer;
 
         uint32_t distanceBits;
-    };
+    }; 
 
-    static_assert(sizeof(BlendedKey) == 8);
+    static_assert(sizeof(BlendedKey) == 12);
 
     struct CustomKey {
-        uint32_t channel : 3;    
-        uint32_t commandType : 2;      
-        uint32_t passType : 2;
         uint32_t order : 22;
-        uint32_t reserved : 3;
-
+        uint32_t reserved : 10;
         uint32_t commandIndex;
-    };
 
-    static_assert(sizeof(CustomKey) == 8);
-    
-    struct CmdKey {
+        uint32_t reserved2;
+    }; 
+
+    static_assert(sizeof(CustomKey) == 12);
+
+    struct CommandKey {
+        uint16_t channel;
+        uint16_t commandType;
+        uint16_t passType;
+        uint16_t reserved;
+
+        uint16_t order;
+        uint16_t layar;
+
         union {
             ColorDepthRefractKey colorDepthRefractKey;
             BlendedKey blendedKey;
             CustomKey customKey;
         };
-
-        uint8_t channel() const {
-            return colorDepthRefractKey.channel;
-        }
-
-        uint8_t passType() const {
-            return colorDepthRefractKey.passType;
-        }
-
-        uint8_t commandType() const {
-            return colorDepthRefractKey.commandType;
-        }
-
-        void setChannel(uint8_t channel) {
-            colorDepthRefractKey.channel = channel;
-        }
-
-        void setPassType(uint8_t passType) {
-            colorDepthRefractKey.passType = passType;
-        }
-
-        void setCommandType(uint8_t commandType) {
-            colorDepthRefractKey.commandType = commandType;
-        }
     };
 
-    static_assert(sizeof(CmdKey) == 8);
+    static_assert(sizeof(CommandKey) == 24);
 
-    static constexpr CmdKey DEFAULT_KEY = {
+    static constexpr CommandKey DEFAULT_KEY = {
+        .channel = 0,
+        .commandType = 0,
+        .passType = 0,
+        .reserved = 0,
+        .order = 0,
+        .layar = 0,
         .colorDepthRefractKey = {
-            .channel = 0, 
-            .commandType = 0,
-            .passType = 0,
             .alphaMasking = 0,
             .priority = 0,
             .zBucket = 0,
-            .materialId = 0
+            .materialId = 0,
+            .secondLayer = 0,
+            .secondOrder = 0
         }
     };
 
@@ -261,34 +248,36 @@ public:
     // we assume Variant fits in 8-bits.
     static_assert(sizeof(Variant::type_t) == 1);
 
-    enum class Pass : uint64_t {    // 6-bits max
-        DEPTH    = uint64_t(0x00) << PASS_SHIFT,
-        COLOR    = uint64_t(0x01) << PASS_SHIFT,
-        REFRACT  = uint64_t(0x02) << PASS_SHIFT,
-        BLENDED  = uint64_t(0x03) << PASS_SHIFT,
-        SENTINEL = 0xffffffffffffffffllu
+    enum class Pass : uint16_t {    // 6-bits max
+        DEPTH    = uint16_t(0x0000),
+        COLOR    = uint16_t(0x0001),
+        REFRACT  = uint16_t(0x0002),
+        BLENDED  = uint16_t(0x0003),
+        SENTINEL = uint16_t(0xFFFF)
     };
 
-    //crd
-    enum class PassKey : uint8_t {
-        DEPTH    = uint8_t(0x00),
-        COLOR    = uint8_t(0x01),
-        REFRACT  = uint8_t(0x02),
-        BLENDED  = uint8_t(0x03),
-        SENTINEL = 0xFF
+    enum class CustomCommand : uint16_t {    // 2-bits max
+        PROLOG  = uint16_t(0x0),
+        PASS    = uint16_t(0x1),
+        EPILOG  = uint16_t(0x2)
     };
 
-    //crd 
-    enum class CmdType : uint8_t {
-        PROLOG  = uint8_t(0x00),
-        PASS    = uint8_t(0x01),
-        EPILOG  = uint8_t(0x02)
-    };
+    enum CommandSortingCriteria {
+        SORT_NONE = 0,
+        SORT_ORDER = (1 << 0),
+    
 
-    enum class CustomCommand : uint64_t {    // 2-bits max
-        PROLOG  = uint64_t(0x0) << CUSTOM_SHIFT,
-        PASS    = uint64_t(0x1) << CUSTOM_SHIFT,
-        EPILOG  = uint64_t(0x2) << CUSTOM_SHIFT
+        kSortNone = 0,
+        kSortSortingLayer = (1 << 0), // by global sorting layer
+        kSortRenderQueue = (1 << 1), // by material render queue
+        kSortBackToFront = (1 << 2), // distance back to front, sorting group order, same distance sort priority, material index on renderer
+        kSortQuantizedFrontToBack = (1 << 3), // front to back by quantized distance
+        kSortOptimizeStateChanges = (1 << 4), // combination of: static batching, lightmaps, material sort key, geometry ID
+        kSortCanvasOrder = (1 << 5), // same distance sort priority (used in Canvas)
+        kSortRendererPriority = (1 << 6), // by renderer priority (if render queues are not equal)
+
+        kSortCommonOpaque = kSortSortingLayer | kSortRenderQueue | kSortQuantizedFrontToBack | kSortOptimizeStateChanges | kSortCanvasOrder,
+        kSortCommonTransparent = kSortSortingLayer | kSortRenderQueue | kSortBackToFront | kSortOptimizeStateChanges,
     };
 
     enum class CommandTypeFlags : uint32_t {
@@ -321,25 +310,25 @@ public:
      *
      * The variant is inserted while building the commands, because we don't know it before that
      */
-    static CommandKey makeMaterialSortingKey(uint32_t materialId, uint32_t instanceId) noexcept {
-        CommandKey const key = ((materialId << MATERIAL_ID_SHIFT) & MATERIAL_ID_MASK) |
+    static uint64_t makeMaterialSortingKey(uint32_t materialId, uint32_t instanceId) noexcept {
+        uint64_t const key = ((materialId << MATERIAL_ID_SHIFT) & MATERIAL_ID_MASK) |
                          ((instanceId << MATERIAL_INSTANCE_ID_SHIFT) & MATERIAL_INSTANCE_ID_MASK);
         return (key << MATERIAL_SHIFT) & MATERIAL_MASK;
     }
 
     template<typename T>
-    static CommandKey makeField(T value, uint64_t mask, unsigned shift) noexcept {
+    static uint64_t makeField(T value, uint64_t mask, unsigned shift) noexcept {
         assert_invariant(!((uint64_t(value) << shift) & ~mask));
         return uint64_t(value) << shift;
     }
 
     template<typename T>
-    static CommandKey select(T boolish) noexcept {
+    static uint64_t select(T boolish) noexcept {
         return boolish ? std::numeric_limits<uint64_t>::max() : uint64_t(0);
     }
 
     template<typename T>
-    static CommandKey select(T boolish, uint64_t value) noexcept {
+    static uint64_t select(T boolish, uint64_t value) noexcept {
         return boolish ? value : uint64_t(0);
     }
 
@@ -368,25 +357,25 @@ public:
     static_assert(sizeof(PrimitiveInfo) == 56);
 
     struct alignas(8) Command {     // 64 bytes
-        CmdKey key = DEFAULT_KEY;
+        CommandKey key = DEFAULT_KEY;
         //CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            if(key.channel() != rhs.key.channel()) {
-                return key.channel() < rhs.key.channel();
+            if(key.channel != rhs.key.channel) {
+                return key.channel < rhs.key.channel;
             }
 
-            if(key.passType() != rhs.key.passType()) {
-                return key.passType() < rhs.key.passType();
+            if(key.passType != rhs.key.passType) {
+                return key.passType < rhs.key.passType;
             }
 
-            if(key.commandType() != rhs.key.commandType()) {
-                return key.commandType() < rhs.key.commandType();
+            if(key.commandType != rhs.key.commandType) {
+                return key.commandType < rhs.key.commandType;
             }
 
-            if(key.commandType() != uint8_t(CmdType::PASS)) {
+            if(key.commandType != uint16_t(CustomCommand::PASS)) {
                 if(key.customKey.order != rhs.key.customKey.order) { 
                     return key.customKey.order < rhs.key.customKey.order;
                 }
@@ -398,7 +387,7 @@ public:
                     return key.blendedKey.priority < rhs.key.blendedKey.priority;
                 }
 
-                if(key.passType() == uint8_t(PassKey::BLENDED)) {
+                if(key.passType == uint16_t(Pass::BLENDED)) {
                     if(key.blendedKey.distanceBits != rhs.key.blendedKey.distanceBits) {
                         return key.blendedKey.distanceBits < rhs.key.blendedKey.distanceBits;
                     }
@@ -417,8 +406,6 @@ public:
                     return key.colorDepthRefractKey.materialId < rhs.key.colorDepthRefractKey.materialId;
                 }
             }
-
-            // return true;
         }
         
         // placement new declared as "throw" to avoid the compiler's null-check
@@ -427,7 +414,7 @@ public:
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 64); //64 + 16 = 
+    static_assert(sizeof(Command) == 80); //64 + 16 = 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 
