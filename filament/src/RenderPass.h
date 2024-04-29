@@ -128,10 +128,10 @@ public:
     //t                      distanceBits,blendOrder
 
     struct ColorDepthRefractKey {
+        uint32_t priority : 3;
         uint32_t alphaMasking : 1;
-        uint32_t priority : 6;
         uint32_t zBucket : 10;
-        uint32_t reserved : 15;
+        uint32_t reserved : 18;
 
         uint16_t secondOrder;
         uint16_t secondLayer;
@@ -169,8 +169,7 @@ public:
         uint16_t channel;
         uint16_t commandType;
         uint16_t passType;
-        uint16_t reserved;
-
+        uint16_t renderQueue;
         uint16_t order;
         uint16_t layar;
 
@@ -187,7 +186,7 @@ public:
         .channel = 0,
         .commandType = 0,
         .passType = 0,
-        .reserved = 0,
+        .renderQueue = 0,
         .order = 0,
         .layar = 0,
         .colorDepthRefractKey = {
@@ -195,6 +194,7 @@ public:
             .priority = 0,
             .zBucket = 0,
             .materialId = 0,
+            .reserved = 0,
             .secondLayer = 0,
             .secondOrder = 0
         }
@@ -262,23 +262,38 @@ public:
         EPILOG  = uint16_t(0x2)
     };
 
-    enum CommandSortingCriteria {
+    enum CommandSortingCriteria : uint32_t{
         SORT_NONE = 0,
         SORT_ORDER = (1 << 0),
-    
+        SORT_LAYER = (1 << 1),
+        SORT_RENDER_QUEUE = (1 << 2),
+        SORT_CHANNEL = (1 << 3),
+        SORT_COMMAND_TYPE = (1 << 4),
+        SORT_PASS_TYPE = (1 << 5),
 
-        kSortNone = 0,
-        kSortSortingLayer = (1 << 0), // by global sorting layer
-        kSortRenderQueue = (1 << 1), // by material render queue
-        kSortBackToFront = (1 << 2), // distance back to front, sorting group order, same distance sort priority, material index on renderer
-        kSortQuantizedFrontToBack = (1 << 3), // front to back by quantized distance
-        kSortOptimizeStateChanges = (1 << 4), // combination of: static batching, lightmaps, material sort key, geometry ID
-        kSortCanvasOrder = (1 << 5), // same distance sort priority (used in Canvas)
-        kSortRendererPriority = (1 << 6), // by renderer priority (if render queues are not equal)
+        SORT_ALPHA_MASKING = (1 << 6),
+        SORT_PRIORITY = (1 << 7),
+        SORT_ZBUCKET = (1 << 8),
+        SORT_SECOND_ORDER = (1 << 9),
+        SORT_SECOND_LAYAR = (1 << 10),
+        SORT_MATERIAL_ID = (1 << 11),
 
-        kSortCommonOpaque = kSortSortingLayer | kSortRenderQueue | kSortQuantizedFrontToBack | kSortOptimizeStateChanges | kSortCanvasOrder,
-        kSortCommonTransparent = kSortSortingLayer | kSortRenderQueue | kSortBackToFront | kSortOptimizeStateChanges,
+        SORT_BLENDER_ORDER = (1 << 12),
+        SORT_TWO_PASS_ORDER = (1 << 13),
+        SORT_DISTANCE_BITS = (1 << 14),
+
+        SORT_CUSTOM_ORDER = (1 << 15),
+        SORT_COMMAN_INDEX = (1 << 16),
+
+        SORT_COMMON = SORT_ORDER | SORT_LAYER | SORT_RENDER_QUEUE | SORT_CHANNEL | SORT_COMMAND_TYPE | SORT_PASS_TYPE,
+        SORT_COLOR_DEPTH_REFRACT_CMD = SORT_COMMON | SORT_ALPHA_MASKING | SORT_PRIORITY | SORT_ZBUCKET | SORT_SECOND_ORDER | SORT_SECOND_LAYAR | SORT_MATERIAL_ID,
+        SORT_BLENDER_CMD = SORT_COMMON | SORT_PRIORITY | SORT_BLENDER_ORDER | SORT_TWO_PASS_ORDER | SORT_SECOND_ORDER | SORT_SECOND_LAYAR | SORT_DISTANCE_BITS,
+        SORT_CUSTOM_CMD = SORT_COMMON | SORT_CUSTOM_ORDER | SORT_COMMAN_INDEX
     };
+
+    static bool HasFlag(const CommandSortingCriteria flags, const CommandSortingCriteria flagToTest) { 
+        return ((uint32_t)flags & (uint32_t)flagToTest) != 0;
+    }
 
     enum class CommandTypeFlags : uint32_t {
         COLOR = 0x1,    // generate the color pass only
@@ -332,6 +347,11 @@ public:
         return boolish ? value : uint64_t(0);
     }
 
+    template<typename T>
+    static uint16_t select16(T boolish) noexcept {
+        return boolish ? std::numeric_limits<uint16_t>::max() : uint16_t(0);
+    }
+
     struct PrimitiveInfo { // 56 bytes
         union {
             FRenderPrimitive const* primitive;                          // 8 bytes;
@@ -358,21 +378,48 @@ public:
 
     struct alignas(8) Command {     // 64 bytes
         CommandKey key = DEFAULT_KEY;
+        CommandSortingCriteria sortingCriteria;
         //CommandKey key = 0;         //  8 bytes
         PrimitiveInfo primitive;    // 56 bytes
         //bool operator < (Command const& rhs) const noexcept { return key < rhs.key; }
         //crd
         bool operator < (Command const& rhs) const noexcept {
-            if(key.channel != rhs.key.channel) {
-                return key.channel < rhs.key.channel;
+            CommandSortingCriteria criteria = static_cast<CommandSortingCriteria>((uint32_t)sortingCriteria & (uint32_t)rhs.sortingCriteria);
+
+            if(HasFlag(criteria, SORT_ORDER)) { 
+                if(key.order != rhs.key.order) {
+                    return key.order < rhs.key.order;
+                }
             }
 
-            if(key.passType != rhs.key.passType) {
-                return key.passType < rhs.key.passType;
+            if(HasFlag(criteria, SORT_LAYER)) {
+                if(key.layar != rhs.key.layar) {
+                    return key.layar < rhs.key.layar;
+                }
             }
 
-            if(key.commandType != rhs.key.commandType) {
-                return key.commandType < rhs.key.commandType;
+            if(HasFlag(criteria, SORT_RENDER_QUEUE)) {
+                if(key.renderQueue != rhs.key.renderQueue) {
+                    return key.renderQueue < rhs.key.renderQueue;
+                }
+            }
+
+            if(HasFlag(criteria, SORT_CHANNEL)) {
+                if(key.channel != rhs.key.channel) {
+                    return key.channel < rhs.key.channel;
+                }
+            }
+
+            if(HasFlag(criteria, SORT_PASS_TYPE)) {
+                if(key.passType != rhs.key.passType) {
+                    return key.passType < rhs.key.passType;
+                }
+            }
+
+            if(HasFlag(criteria, SORT_COMMAND_TYPE)) {
+                if(key.commandType != rhs.key.commandType) {
+                    return key.commandType < rhs.key.commandType;
+                }
             }
 
             if(key.commandType != uint16_t(CustomCommand::PASS)) {
@@ -385,6 +432,14 @@ public:
             else {
                 if(key.blendedKey.priority != rhs.key.blendedKey.priority) {
                     return key.blendedKey.priority < rhs.key.blendedKey.priority;
+                }
+
+                if(key.blendedKey.secondOrder != rhs.key.blendedKey.secondOrder) {
+                    return key.blendedKey.secondOrder < rhs.key.blendedKey.secondOrder;
+                }
+
+                if(key.blendedKey.secondLayer != rhs.key.blendedKey.secondLayer) {
+                    return key.blendedKey.secondLayer < rhs.key.blendedKey.secondLayer;
                 }
 
                 if(key.passType == uint16_t(Pass::BLENDED)) {
@@ -414,7 +469,7 @@ public:
             return ptr;
         }
     };
-    static_assert(sizeof(Command) == 80); //64 + 16 = 
+    static_assert(sizeof(Command) == 88); 
     static_assert(std::is_trivially_destructible_v<Command>,
             "Command isn't trivially destructible");
 
