@@ -189,4 +189,13 @@ bool RenderableManager::getFogEnabled(RenderableManager::Instance instance) cons
     return downcast(this)->getFogEnabled(instance);
 }
 
+//crd
+void RenderableManager::setSortingOrder(RenderableManager::Instance instance, uint16_t order) noexcept {
+    downcast(this)->setSortingOrder(instance, order);
+}
+
+void RenderableManager::setSortingLayer(RenderableManager::Instance instance, uint16_t layer) noexcept {
+    downcast(this)->setSortingLayer(instance, layer);
+}
+
 } // namespace filament

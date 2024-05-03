@@ -491,6 +491,9 @@ public:
     void setStencilWriteMask(uint8_t writeMask,
             StencilFace face = StencilFace::FRONT_AND_BACK) noexcept;
 
+    //crd
+    void setRenderQueue(uint16_t renderQueue) noexcept;
+
 protected:
     // prevent heap allocation
     ~MaterialInstance() = default;

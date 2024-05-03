@@ -866,6 +866,11 @@ public:
      */
     AttributeBitset getEnabledAttributesAt(Instance instance, size_t primitiveIndex) const noexcept;
 
+    //crd
+    void setSortingOrder(Instance instance, uint16_t order) noexcept;
+
+    void setSortingLayer(Instance instance, uint16_t layer) noexcept;
+
     /*! \cond PRIVATE */
     template<typename T>
     struct is_supported_vector_type {

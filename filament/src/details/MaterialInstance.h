@@ -67,6 +67,13 @@ public:
 
     uint64_t getSortingKey() const noexcept { return mMaterialSortingKey; }
 
+    //crd
+    uint16_t getRenderQueue() const noexcept { return mRenderQueue; }
+
+    void setRenderQueue(uint16_t renderQueue) noexcept {
+        mRenderQueue = renderQueue;
+    }
+
     UniformBuffer const& getUniformBuffer() const noexcept { return mUniforms; }
     backend::SamplerGroup const& getSamplerGroup() const noexcept { return mSamplers; }
 
@@ -260,6 +267,8 @@ private:
     TransparencyMode mTransparencyMode : 2;
 
     uint64_t mMaterialSortingKey = 0;
+
+    uint16_t mRenderQueue = 0;
 
     // Scissor rectangle is specified as: Left Bottom Width Height.
     backend::Viewport mScissorRect = { 0, 0,

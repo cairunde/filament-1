@@ -82,6 +82,15 @@ public:
 
     static_assert(sizeof(Visibility) == sizeof(uint16_t), "Visibility should be 16 bits");
 
+    //crd
+    struct SortingKey {
+        uint16_t order;
+        uint16_t layer;
+        uint16_t renderQueue;
+    };
+
+    static_assert(sizeof(SortingKey) == 6);
+
     struct MorphTargets {
         FMorphTargetBuffer* buffer = nullptr;
         uint32_t offset = 0;
@@ -177,6 +186,12 @@ public:
     inline uint8_t getPriority(Instance instance) const noexcept;
     inline uint8_t getChannels(Instance instance) const noexcept;
 
+    //crd
+    inline SortingKey getSortingKey(Instance instance) const noexcept;
+
+    void setSortingOrder(Instance instance, uint16_t order) noexcept;
+    void setSortingLayer(Instance instance, uint16_t layer) noexcept;
+
     struct SkinningBindingInfo {
         backend::Handle<backend::HwBufferObject> handle;
         uint32_t offset;
@@ -254,7 +269,9 @@ private:
         VISIBILITY,             // user data
         PRIMITIVES,             // user data
         BONES,                  // filament data, UBO storing a pointer to the bones information
-        MORPH_TARGETS
+        MORPH_TARGETS,
+        //crd
+        SORTING_KEY,
     };
 
     using Base = utils::SingleInstanceComponentManager<
@@ -266,7 +283,9 @@ private:
             Visibility,                      // VISIBILITY
             utils::Slice<FRenderPrimitive>,  // PRIMITIVES
             Bones,                           // BONES
-            utils::Slice<MorphTargets>       // MORPH_TARGETS
+            utils::Slice<MorphTargets>,      // MORPH_TARGETS
+            //crd
+            SortingKey                       // SORTING_KEY
     >;
 
     struct Sim : public Base {
@@ -290,6 +309,7 @@ private:
                 Field<PRIMITIVES>           primitives;
                 Field<BONES>                bones;
                 Field<MORPH_TARGETS>        morphTargets;
+                Field<SORTING_KEY>          sortingKeys;
             };
         };
 
@@ -413,6 +433,26 @@ void FRenderableManager::setPrimitives(Instance instance,
         utils::Slice<FRenderPrimitive> const& primitives) noexcept {
     if (instance) {
         mManager[instance].primitives = primitives;
+    }
+}
+
+//crd
+FRenderableManager::SortingKey 
+FRenderableManager::getSortingKey(Instance instance) const noexcept {
+    return mManager[instance].sortingKeys;
+}
+
+void FRenderableManager::setSortingOrder(Instance instance, uint16_t order) noexcept {
+    if (instance) {
+        SortingKey& sortingKey = mManager[instance].sortingKeys;
+        sortingKey.order = order;
+    }
+}
+
+void FRenderableManager::setSortingLayer(Instance instance, uint16_t layer) noexcept {
+    if (instance) {
+        SortingKey& sortingKey = mManager[instance].sortingKeys;
+        sortingKey.layer = layer;
     }
 }
 

@@ -112,6 +112,8 @@ public:
 
         // FIXME: We need a better way to handle this
         USER_DATA,              //   4 | user data currently used to store the scale
+        //crd
+        SORTING_KEY,            //   6
     };
 
     using RenderableSoa = utils::StructureOfArrays<
@@ -130,7 +132,9 @@ public:
             uint32_t,                                   // SUMMED_PRIMITIVE_COUNT
             PerRenderableData,                          // UBO
             // FIXME: We need a better way to handle this
-            float                                       // USER_DATA
+            float,                                      // USER_DATA
+            //crd
+            FRenderableManager::SortingKey               // SORTING_KEY           
     >;
 
     RenderableSoa const& getRenderableData() const noexcept { return mRenderableData; }

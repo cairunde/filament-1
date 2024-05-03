@@ -425,7 +425,6 @@ void RenderPass::setupColorCommand(Command& cmdDraw, Variant variant,
     // Below, we evaluate both commands to avoid a branch
 
     //uint64_t keyBlending = cmdDraw.key;
-    //crd 这里是清除了pass和alpha masking的值
     // keyBlending &= ~(PASS_MASK | BLENDING_MASK);
     // keyBlending |= uint64_t(Pass::BLENDED);
     // keyBlending |= uint64_t(CustomCommand::PASS);
@@ -574,6 +573,8 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
     auto const* const UTILS_RESTRICT soaMorphing            = soa.data<FScene::MORPHING_BUFFER>();
     auto const* const UTILS_RESTRICT soaVisibilityMask      = soa.data<FScene::VISIBLE_MASK>();
     auto const* const UTILS_RESTRICT soaInstanceInfo        = soa.data<FScene::INSTANCES>();
+    //crd
+    auto const* const UTILS_RESTRICT soaSortingKey          = soa.data<FScene::SORTING_KEY>();
 
     const bool hasShadowing = renderFlags & HAS_SHADOWING;
     const bool viewInverseFrontFaces = renderFlags & HAS_INVERSE_FRONT_FACES;
@@ -648,6 +649,11 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                 soaInstanceInfo[i].count | PrimitiveInfo::USER_INSTANCE_MASK;
         cmdColor.primitive.instanceBufferHandle = soaInstanceInfo[i].handle;
 
+        //crd test
+
+        cmdColor.key.layar = soaSortingKey[i].layer;
+        cmdColor.key.order = soaSortingKey[i].order;
+
         // soaInstanceInfo[i].count is the number of instances the user has requested, either for
         // manual or hybrid instancing. Instanced stereo multiplies the number of instances by the
         // eye count.
@@ -676,6 +682,10 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
             cmdDepth.key.blendedKey.distanceBits = distanceBits >> 22u;
 
             cmdDepth.sortingCriteria = SORT_COLOR_DEPTH_REFRACT_CMD;
+
+            //crd test
+            cmdDepth.key.layar = soaSortingKey[i].layer;
+            cmdDepth.key.order = soaSortingKey[i].order;
 
 
             // cmdDepth.key = uint64_t(Pass::DEPTH);
@@ -732,6 +742,8 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                 RenderPass::setupColorCommand(cmdColor, renderableVariant, mi, inverseFrontFaces);
 
                 cmdColor.primitive.morphTargetBuffer = morphTargets.buffer->getHwHandle();
+                //crd test
+                cmdColor.key.renderQueue = mi->getRenderQueue();
 
                 //crd
                 //const bool blendPass = Pass(cmdColor.key & PASS_MASK) == Pass::BLENDED;
@@ -795,6 +807,7 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     CommandKey key = cmdColor.key;
                     key.blendedKey.twoPassOrder = 1;
 
+                    //crd temp
                     key.passType |= select16(mode == TransparencyMode::DEFAULT);
                     key.passType |= select16(filterTranslucentObjects);
                     key.passType |= select16(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
@@ -850,6 +863,9 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                 //crd
                 cmdDepth.key.colorDepthRefractKey.materialId = static_cast<uint32_t>(mi->getSortingKey());
 
+                //crd test
+                cmdDepth.key.renderQueue = mi->getRenderQueue();
+
                 // unconditionally write the command
                 cmdDepth.primitive.primitive = &primitive;
                 cmdDepth.primitive.rasterState.culling = mi->getCullingMode();
@@ -866,7 +882,6 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
 
                 // cancel command if both front and back faces are culled
                 //curr->key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
-                //crd 被裁减的取消掉
                 if(mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
                     curr->key.passType = uint16_t(Pass::SENTINEL);
                 }
@@ -1004,7 +1019,7 @@ void RenderPass::Executor::execute(FEngine& engine,
                  * Be careful when changing code below, this is the hot inner-loop
                  */
 
-//crd
+                //crd
                 // if (UTILS_UNLIKELY((first->key & CUSTOM_MASK) != uint64_t(CustomCommand::PASS))) {
                 //     mi = nullptr; // custom command could change the currently bound MaterialInstance
                 //     uint32_t const index = (first->key & CUSTOM_INDEX_MASK) >> CUSTOM_INDEX_SHIFT;

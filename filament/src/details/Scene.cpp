@@ -215,6 +215,8 @@ void FScene::prepare(utils::JobSystem& js,
             sceneData.elementAt<SUMMED_PRIMITIVE_COUNT>(index) = 0;
             //sceneData.elementAt<UBO>(index)                 = {}; // not needed here
             sceneData.elementAt<USER_DATA>(index)           = scale;
+            //crd
+            sceneData.elementAt<SORTING_KEY>(index)         = rcm.getSortingKey(ri);
         }
     };
 

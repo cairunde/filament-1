@@ -340,4 +340,9 @@ bool MaterialInstance::isDepthCullingEnabled() const noexcept {
     return downcast(this)->isDepthCullingEnabled();
 }
 
+//crd
+void MaterialInstance::setRenderQueue(uint16_t renderQueue) noexcept {
+    downcast(this)->setRenderQueue(renderQueue);
+}
+
 } // namespace filament
