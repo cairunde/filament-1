@@ -122,11 +122,6 @@ public:
      */
     //using CommandKey = uint64_t;
 
-    //公有的channel commandType passType 
-    //alphaMasking,priority  Z-bucket,material-id
-    //priority               order,customCommandIndex
-    //t                      distanceBits,blendOrder
-
     struct ColorDepthRefractKey {
         uint32_t priority : 3;
         uint32_t alphaMasking : 1;
@@ -285,6 +280,10 @@ public:
         SORT_CUSTOM_ORDER = (1 << 15),
         SORT_COMMAN_INDEX = (1 << 16),
 
+        //crd 考虑是否要用这种更通用的设计
+        SORT_FRONT_TO_BACK = (1 << 17),
+        SORT_BACK_TO_FRONT = (1 << 18),
+
         SORT_COMMON = SORT_ORDER | SORT_LAYER | SORT_RENDER_QUEUE | SORT_CHANNEL | SORT_COMMAND_TYPE | SORT_PASS_TYPE,
         SORT_COLOR_DEPTH_REFRACT_CMD = SORT_COMMON | SORT_ALPHA_MASKING | SORT_PRIORITY | SORT_ZBUCKET | SORT_SECOND_ORDER | SORT_SECOND_LAYAR | SORT_MATERIAL_ID,
         SORT_BLENDER_CMD = SORT_COMMON | SORT_PRIORITY | SORT_BLENDER_ORDER | SORT_TWO_PASS_ORDER | SORT_SECOND_ORDER | SORT_SECOND_LAYAR | SORT_DISTANCE_BITS,
@@ -347,11 +346,6 @@ public:
         return boolish ? value : uint64_t(0);
     }
 
-    template<typename T>
-    static uint16_t select16(T boolish) noexcept {
-        return boolish ? std::numeric_limits<uint16_t>::max() : uint16_t(0);
-    }
-
     struct PrimitiveInfo { // 56 bytes
         union {
             FRenderPrimitive const* primitive;                          // 8 bytes;
@@ -386,6 +380,16 @@ public:
         bool operator < (Command const& rhs) const noexcept {
             CommandSortingCriteria criteria = static_cast<CommandSortingCriteria>((uint32_t)sortingCriteria & (uint32_t)rhs.sortingCriteria);
 
+            if(rhs.key.passType == uint16_t(Pass::SENTINEL)) {
+                return true;
+            }
+
+            if(HasFlag(criteria, SORT_CHANNEL)) {
+                if(key.channel != rhs.key.channel) {
+                    return key.channel < rhs.key.channel;
+                }
+            }
+
             if(HasFlag(criteria, SORT_ORDER)) { 
                 if(key.order != rhs.key.order) {
                     return key.order < rhs.key.order;
@@ -401,12 +405,6 @@ public:
             if(HasFlag(criteria, SORT_RENDER_QUEUE)) {
                 if(key.renderQueue != rhs.key.renderQueue) {
                     return key.renderQueue < rhs.key.renderQueue;
-                }
-            }
-
-            if(HasFlag(criteria, SORT_CHANNEL)) {
-                if(key.channel != rhs.key.channel) {
-                    return key.channel < rhs.key.channel;
                 }
             }
 
@@ -444,7 +442,7 @@ public:
 
                 if(key.passType == uint16_t(Pass::BLENDED)) {
                     if(key.blendedKey.distanceBits != rhs.key.blendedKey.distanceBits) {
-                        return key.blendedKey.distanceBits < rhs.key.blendedKey.distanceBits;
+                        return key.blendedKey.distanceBits > rhs.key.blendedKey.distanceBits;
                     }
 
                     if(key.blendedKey.blenderOrder != rhs.key.blendedKey.blenderOrder) {

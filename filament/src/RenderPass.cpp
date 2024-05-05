@@ -256,10 +256,11 @@ void RenderPass::appendCustomCommand(Command* commands,
     commands->key = cmd;
 }
 
+//crd sort
 void RenderPass::sortCommands(Arena& arena) noexcept {
     SYSTRACE_NAME("sort and trim commands");
 
-    static int a = 0;
+    //static int a = 0;
 
     std::sort(mCommandBegin, mCommandEnd);
 
@@ -270,16 +271,6 @@ void RenderPass::sortCommands(Arena& arena) noexcept {
                 //crd
                 return c.key.passType != uint16_t(Pass::SENTINEL);
             });
-
-
-    if(a == 0)
-    {
-        for(auto* ptr = mCommandBegin; ptr < mCommandEnd; ptr++) {
-            printf("%d", ptr->key.passType);
-            printf("\n");
-        }
-        a++;
-    }
 
     resize(arena, uint32_t(last - mCommandBegin));
 }
@@ -678,8 +669,8 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
             cmdDepth.key.passType = uint16_t(Pass::DEPTH);
             cmdDepth.key.commandType = uint16_t(CustomCommand::PASS);
             cmdDepth.key.channel = soaVisibility[i].channel;
-            cmdDepth.key.blendedKey.priority = soaVisibility[i].priority;
-            cmdDepth.key.blendedKey.distanceBits = distanceBits >> 22u;
+            cmdDepth.key.colorDepthRefractKey.priority = soaVisibility[i].priority;
+            cmdDepth.key.colorDepthRefractKey.zBucket = distanceBits >> 22u;
 
             cmdDepth.sortingCriteria = SORT_COLOR_DEPTH_REFRACT_CMD;
 
@@ -767,8 +758,11 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     // cmdColor.key |= makeField(primitive.getBlendOrder(),
                     //         BLEND_ORDER_MASK, BLEND_ORDER_SHIFT);
 
+                    //crd
                     cmdColor.key.blendedKey.distanceBits = distanceBits;
-                    cmdColor.key.blendedKey.distanceBits &= select16(primitive.isGlobalBlendOrderEnabled());
+                    if(primitive.isGlobalBlendOrderEnabled()) {
+                        cmdColor.key.blendedKey.distanceBits = std::numeric_limits<uint16_t>::max();
+                    }
                     cmdColor.key.blendedKey.blenderOrder = primitive.getBlendOrder();
 
 
@@ -807,10 +801,9 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     CommandKey key = cmdColor.key;
                     key.blendedKey.twoPassOrder = 1;
 
-                    //crd temp
-                    key.passType |= select16(mode == TransparencyMode::DEFAULT);
-                    key.passType |= select16(filterTranslucentObjects);
-                    key.passType |= select16(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
+                    if(mode == TransparencyMode::DEFAULT || filterTranslucentObjects || mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
+                        key.passType = uint16_t(Pass::SENTINEL);
+                    }
 
                     *curr = cmdColor;
                     curr->key = key;
@@ -837,14 +830,16 @@ RenderPass::Command* RenderPass::generateCommandsImpl(RenderPass::CommandTypeFla
                     // cmdColor.key |= makeField(distanceBits >> 22u, Z_BUCKET_MASK, Z_BUCKET_SHIFT);
 
                     //crd
-                    cmdColor.key.blendedKey.distanceBits |= distanceBits >> 22u;
+                    cmdColor.key.colorDepthRefractKey.zBucket = distanceBits >> 22u;
                 }
 
                 *curr = cmdColor;
 
                 // cancel command if both front and back faces are culled
                 //curr->key |= select(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
-                curr->key.passType |= select16(mi->getCullingMode() == CullingMode::FRONT_AND_BACK);
+                if(mi->getCullingMode() == CullingMode::FRONT_AND_BACK) {
+                    curr->key.passType = uint16_t(Pass::SENTINEL);
+                }
 
                 ++curr;
             }

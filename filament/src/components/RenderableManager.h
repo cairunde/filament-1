@@ -86,10 +86,9 @@ public:
     struct SortingKey {
         uint16_t order;
         uint16_t layer;
-        uint16_t renderQueue;
     };
 
-    static_assert(sizeof(SortingKey) == 6);
+    static_assert(sizeof(SortingKey) == 4);
 
     struct MorphTargets {
         FMorphTargetBuffer* buffer = nullptr;

@@ -113,7 +113,7 @@ public:
         // FIXME: We need a better way to handle this
         USER_DATA,              //   4 | user data currently used to store the scale
         //crd
-        SORTING_KEY,            //   6
+        SORTING_KEY,            //   4
     };
 
     using RenderableSoa = utils::StructureOfArrays<
